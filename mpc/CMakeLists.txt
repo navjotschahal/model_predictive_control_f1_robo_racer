@@ -53,6 +53,8 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
   scripts/mpc_node.py
+  scripts/utils.py
+  scripts/viz_utils.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -67,6 +69,17 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+# config files directory
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+# launch files directory
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 
 ament_package()
