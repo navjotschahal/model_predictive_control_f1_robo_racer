@@ -111,7 +111,8 @@ def quaternion_from_euler(roll, pitch, yaw):
 
 def smooth_waypoints(self, waypoints=None):
     """
-    Smooth waypoints using B-spline interpolation to create a smoother trajectory
+    Smooth waypoints using B-spline interpolation to create a smoother trajectory.
+    This function also calculates yaw angles as the heading towards the next waypoint.
     """
     from scipy.interpolate import splprep, splev
     
@@ -120,21 +121,19 @@ def smooth_waypoints(self, waypoints=None):
     else:
         waypoints = np.array(waypoints)
     
-    # Extract x and y coordinates
+    # Extract x and y coordinates only - ignore potentially faulty yaw values
     x = waypoints[:, 0]
     y = waypoints[:, 1]
     
-    
     # Create a 2D B-spline (periodic if track is closed)
-    tck, u = splprep([x, y], s=8.0, k=3, per=True)  # k=3 for cubic spline
+    tck, u = splprep([x, y], s=2.0, k=3, per=True)  # k=3 for cubic spline
     
     # Evaluate the B-spline at evenly spaced points
-    t_smooth = np.linspace(0, 1, 100)
+    t_smooth = np.linspace(0, 1, 2200)
     x_smooth, y_smooth = splev(t_smooth, tck)
     
     # Create new waypoints array with smoothed x, y
-    # smooth_waypoints = waypoints.copy()
-    smoothed_waypoints = np.zeros((100, 4)) # Assuming 4 columns: x, y, heading, velocity
+    smoothed_waypoints = np.zeros((2200, 4))  # [x, y, heading, velocity]
     smoothed_waypoints[:, 0] = x_smooth
     smoothed_waypoints[:, 1] = y_smooth
     

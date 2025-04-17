@@ -2,12 +2,13 @@ from geometry_msgs.msg import Point
 import rclpy
 from visualization_msgs.msg import Marker, MarkerArray
 from rclpy.duration import Duration
+from utils import quaternion_from_euler
 
 
 def visualize_waypoints(waypoints, publisher, frame_id="map", ns="waypoints", 
                        color=[0.0, 0.8, 0.2], scale=0.1, lifetime=0.0):
     """
-    Visualize waypoints in RViz
+    Visualize waypoints in RViz with heading arrows
     
     Args:
         waypoints: Nx4 numpy array [x, y, yaw, v]
@@ -64,8 +65,49 @@ def visualize_waypoints(waypoints, publisher, frame_id="map", ns="waypoints",
         p.y = float(waypoints[i, 1])
         p.z = 0.1  # Slightly above ground
         waypoint_markers.points.append(p)
+        line_strip.points.append(p)
     
     marker_array.markers.append(waypoint_markers)
+    
+    # Add arrow markers to show yaw/heading at each waypoint
+    for i in range(len(waypoints)):
+        arrow_marker = Marker()
+        arrow_marker.header.frame_id = frame_id
+        arrow_marker.header.stamp = rclpy.clock.Clock().now().to_msg()
+        arrow_marker.ns = ns + "_headings"
+        arrow_marker.id = i + 100  # Offset to avoid ID collision
+        arrow_marker.type = Marker.ARROW
+        arrow_marker.action = Marker.ADD
+        
+        # Position
+        arrow_marker.pose.position.x = float(waypoints[i, 0])
+        arrow_marker.pose.position.y = float(waypoints[i, 1])
+        arrow_marker.pose.position.z = 0.1  # Slightly above ground
+        
+        # Orientation from yaw angle
+        yaw = float(waypoints[i, 2])
+        q = quaternion_from_euler(0, 0, yaw)
+        arrow_marker.pose.orientation.x = q[0]
+        arrow_marker.pose.orientation.y = q[1]
+        arrow_marker.pose.orientation.z = q[2]
+        arrow_marker.pose.orientation.w = q[3]
+        
+        # Scale - arrow length and width
+        arrow_marker.scale.x = scale * 4.0  # Arrow length
+        arrow_marker.scale.y = scale * 0.5  # Arrow width
+        arrow_marker.scale.z = scale * 0.5  # Arrow height
+        
+        # Color - slightly different to distinguish from waypoints
+        arrow_marker.color.r = color[0] * 0.8
+        arrow_marker.color.g = color[1] * 0.8
+        arrow_marker.color.b = color[2] * 1.2
+        arrow_marker.color.a = 1.0
+        
+        # Set lifetime if specified
+        if lifetime > 0:
+            arrow_marker.lifetime = Duration(seconds=lifetime).to_msg()
+            
+        marker_array.markers.append(arrow_marker)
     
     publisher.publish(marker_array)
 
@@ -218,60 +260,98 @@ def visualize_predicted_path(state_predict, publisher):
     
     publisher.publish(marker_array)
 
-def visualize_reference_trajectory(ref_traj, publisher):
-    """
-    Visualize the reference trajectory used for MPC
+# def visualize_reference_trajectory(ref_traj, publisher):
+#     marker_array = MarkerArray()
+#     marker = Marker()
+#     marker.header.frame_id = "map"
+#     marker.header.stamp = rclpy.time.Time().to_msg()
+#     marker.ns = "reference_trajectory"
+#     marker.id = 0
+#     marker.type = Marker.LINE_STRIP
+#     marker.action = Marker.ADD
+#     marker.scale.x = 0.05  # Line width
     
-    Args:
-        ref_traj: Reference trajectory array [x, y, v, yaw]
-        publisher: ROS publisher for MarkerArray
-    """
+#     # Set pink color
+#     marker.color.r = 1.0
+#     marker.color.g = 0.75
+#     marker.color.b = 0.8
+#     marker.color.a = 1.0  # Full opacity
+    
+#     for i in range(ref_traj.shape[1]):
+#         p = Point()
+#         p.x = ref_traj[0, i]
+#         p.y = ref_traj[1, i]
+#         p.z = 0.3
+#         marker.points.append(p)
+    
+#     marker_array.markers.append(marker)
+#     publisher.publish(marker_array)
+
+def visualize_reference_trajectory(ref_traj, publisher):
     marker_array = MarkerArray()
     
-    # Line connecting reference points
+    # Line strip for trajectory path
     line_marker = Marker()
     line_marker.header.frame_id = "map"
     line_marker.header.stamp = rclpy.clock.Clock().now().to_msg()
+    line_marker.ns = "reference_trajectory"
     line_marker.id = 0
     line_marker.type = Marker.LINE_STRIP
     line_marker.action = Marker.ADD
-    line_marker.pose.orientation.w = 1.0
     line_marker.scale.x = 0.05  # Line width
-    line_marker.color.r = 1.0
-    line_marker.color.g = 0.0   # Green
-    line_marker.color.b = 0.5
-    line_marker.color.a = 1.0
     
-    # Add points to line
+    # Set pink color
+    line_marker.color.r = 1.0
+    line_marker.color.g = 0.75
+    line_marker.color.b = 0.8
+    line_marker.color.a = 1.0  # Full opacity
+    
     for i in range(ref_traj.shape[1]):
         p = Point()
-        p.x = float(ref_traj[0, i])
-        p.y = float(ref_traj[1, i])
-        p.z = 0.1  # Slightly above ground
+        p.x = ref_traj[0, i]
+        p.y = ref_traj[1, i]
+        p.z = 0.3
         line_marker.points.append(p)
     
     marker_array.markers.append(line_marker)
     
-    # Points showing reference states
-    for i in range(ref_traj.shape[1]):
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.header.stamp = rclpy.clock.Clock().now().to_msg()
-        marker.id = i+1
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose.position.x = float(ref_traj[0, i])
-        marker.pose.position.y = float(ref_traj[1, i])
-        marker.pose.position.z = 0.1
-        marker.scale.x = 0.1
-        marker.scale.y = 0.1
-        marker.scale.z = 0.1
-        marker.color.r = 1.0
-        marker.color.g = 1.0  # Green
-        marker.color.b = 0.5
-        marker.color.a = 0.7
+    # Add arrow markers to show yaw/heading at regular intervals
+    arrow_interval = max(1, ref_traj.shape[1] // 15)  # Show ~15 arrows along the path
+    
+    for i in range(0, ref_traj.shape[1], arrow_interval):
+        arrow_marker = Marker()
+        arrow_marker.header.frame_id = "map"
+        arrow_marker.header.stamp = rclpy.clock.Clock().now().to_msg()
+        arrow_marker.ns = "reference_trajectory_headings"
+        arrow_marker.id = i + 100  # Offset to avoid ID collision
+        arrow_marker.type = Marker.ARROW
+        arrow_marker.action = Marker.ADD
         
-        marker_array.markers.append(marker)
+        # Position
+        arrow_marker.pose.position.x = ref_traj[0, i]
+        arrow_marker.pose.position.y = ref_traj[1, i]
+        arrow_marker.pose.position.z = 0.3  # Same height as trajectory
+        
+        # Orientation from yaw angle
+        yaw = ref_traj[2, i]
+        q = quaternion_from_euler(0, 0, yaw)
+        arrow_marker.pose.orientation.x = q[0]
+        arrow_marker.pose.orientation.y = q[1]
+        arrow_marker.pose.orientation.z = q[2]
+        arrow_marker.pose.orientation.w = q[3]
+        
+        # Scale - arrow length and width
+        arrow_marker.scale.x = 0.3  # Arrow length
+        arrow_marker.scale.y = 0.05  # Arrow width
+        arrow_marker.scale.z = 0.05  # Arrow height
+        
+        # Color - slightly different shade of pink
+        arrow_marker.color.r = 1.0
+        arrow_marker.color.g = 0.6
+        arrow_marker.color.b = 0.9
+        arrow_marker.color.a = 1.0
+        
+        marker_array.markers.append(arrow_marker)
     
     publisher.publish(marker_array)
 

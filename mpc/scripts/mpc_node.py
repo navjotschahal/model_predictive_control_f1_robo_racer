@@ -53,7 +53,7 @@ class mpc_config:
     MIN_STEER: float = -0.4189  # maximum steering angle [rad]
     MAX_STEER: float = 0.4189  # maximum steering angle [rad]
     MAX_DSTEER: float = np.deg2rad(180.0)  # maximum steering speed [rad/s]
-    MAX_SPEED: float = 6.0  # maximum speed [m/s]
+    MAX_SPEED: float = 7.0  # maximum speed [m/s]
     MIN_SPEED: float = 0.0  # minimum backward speed [m/s]
     MAX_ACCEL: float = 3.0  # maximum acceleration [m/ss]
 
@@ -96,6 +96,7 @@ class MPC(Node):
         self.ref_traj_pub = self.create_publisher(MarkerArray, '/mpc/reference_trajectory', 10)
 
         self.waypoint_pub = self.create_publisher(MarkerArray, '/mpc/waypoints', 10)
+        self.orig_waypoint_pub = self.create_publisher(MarkerArray, '/mpc/orig_waypoints', 10)
 
         # declare parameters in config file
         self.declare_parameters(
@@ -106,6 +107,7 @@ class MPC(Node):
         #       use the MPC as a tracker (similar to pure pursuit)
         # TODO: get waypoints here
         self.waypoints = load_waypoints(self, waypoint_file_path)
+        # visualize_waypoints(self.waypoints, self.orig_waypoint_pub, color=[1.0, 1.0, 0.0, 1.0], scale=0.5)
         self.waypoints = smooth_waypoints(self, self.waypoints)
         self.odelta_v = None
         self.odelta = None
@@ -171,9 +173,9 @@ class MPC(Node):
         #     ov,
         #     self.optimised_path_pub)
         
-        # visualize_reference_trajectory(
-        #     ref_path,
-        #     self.ref_traj_pub)
+        visualize_reference_trajectory(
+            ref_path,
+            self.ref_traj_pub)
         
         visualize_predicted_path(
             state_predict,
@@ -237,19 +239,19 @@ class MPC(Node):
         # TODO: fill in the objectives here, you should be using cvxpy.quad_form() somehwhere
 
         # TODO: Objective part 1: Influence of the control inputs: Inputs u multiplied by the penalty R
-        # objective += cvxpy.sum([cvxpy.quad_form(self.uk[:, t], self.config.Rk) for t in range(self.config.TK)])
-        objective += cvxpy.quad_form(cvxpy.vec(self.uk), R_block)
+        objective += cvxpy.sum([cvxpy.quad_form(self.uk[:, t], self.config.Rk) for t in range(self.config.TK)])
+        # objective += cvxpy.quad_form(cvxpy.vec(self.uk), R_block)
         # TODO: Objective part 2: Deviation of the vehicle from the reference trajectory weighted by Q, including final Timestep T weighted by Qf
-        # error = self.xk - self.ref_traj_k
-        # for t in range(self.config.TK):
-        #     objective += cvxpy.quad_form(error[:, t], self.config.Qk)
-        # # Final timestep with Qf
-        # objective += cvxpy.quad_form(error[:, self.config.TK], self.config.Qfk)
-        objective += cvxpy.quad_form(cvxpy.vec(self.xk - self.ref_traj_k), Q_block)
+        error = self.xk - self.ref_traj_k
+        for t in range(self.config.TK):
+            objective += cvxpy.quad_form(error[:, t], self.config.Qk)
+        # Final timestep with Qf
+        objective += cvxpy.quad_form(error[:, self.config.TK], self.config.Qfk)
+        # objective += cvxpy.quad_form(cvxpy.vec(self.xk - self.ref_traj_k), Q_block)
         # TODO: Objective part 3: Difference from one control input to the next control input weighted by Rd
-        # for t in range(self.config.TK-1):
-        #     objective += cvxpy.quad_form(self.uk[:, t+1] - self.uk[:, t], self.config.Rdk)
-        objective += cvxpy.quad_form(cvxpy.vec(cvxpy.diff(self.uk, axis=1)), Rd_block)
+        for t in range(self.config.TK-1):
+            objective += cvxpy.quad_form(self.uk[:, t+1] - self.uk[:, t], self.config.Rdk)
+        # objective += cvxpy.quad_form(cvxpy.vec(cvxpy.diff(self.uk, axis=1)), Rd_block)
         # --------------------------------------------------------
 
         # Constraints 1: Calculate the future vehicle behavior/states based on the vehicle dynamics model matrices
@@ -371,12 +373,10 @@ class MPC(Node):
         ref_traj[0, :] = cx[ind_list]
         ref_traj[1, :] = cy[ind_list]
         ref_traj[2, :] = sp[ind_list]
-        cyaw[cyaw - state.yaw > 4.5] = np.abs(
-            cyaw[cyaw - state.yaw > 4.5] - (2 * np.pi)
-        )
-        cyaw[cyaw - state.yaw < -4.5] = np.abs(
-            cyaw[cyaw - state.yaw < -4.5] + (2 * np.pi)
-        )
+        cyaw[cyaw - state.yaw > 4.5] = cyaw[cyaw - state.yaw > 4.5] - (2 * np.pi)
+        
+        cyaw[cyaw - state.yaw < -4.5] = cyaw[cyaw - state.yaw < -4.5] + (2 * np.pi)
+        
         ref_traj[3, :] = cyaw[ind_list]
 
         return ref_traj
