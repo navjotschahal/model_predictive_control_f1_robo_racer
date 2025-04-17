@@ -225,7 +225,7 @@ def calculate_velocity_profile(self, waypoints):
         # Map curvature to velocity: higher curvature -> lower velocity
         # You can adjust these values as needed for your track
         max_velocity = self.config.MAX_SPEED  # Use your configured max speed
-        min_velocity = 1.0  # Minimum velocity at sharpest turns
+        min_velocity = 2.0  # Minimum velocity at sharpest turns
         
         # Normalize curvature to [0, 1] range considering outliers
         # Use percentile to avoid extreme values affecting the scaling

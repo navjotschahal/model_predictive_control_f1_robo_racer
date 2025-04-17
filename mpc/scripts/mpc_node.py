@@ -75,13 +75,20 @@ class MPC(Node):
     """
     def __init__(self):
         super().__init__('mpc_node')
+        # declare parameters in config file
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('waypoint_file_path_in_package', '/config/waypoints.csv'), ('is_sim', True), ('is_debug', True)])
+        waypoint_file_path = self.get_parameter('waypoint_file_path_in_package').value
+        self.is_sim = self.get_parameter('is_sim').value
+        self.is_debug = self.get_parameter('is_debug').value
         # TODO: create ROS subscribers and publishers
-        self.pose_sub = self.create_subscription(
-            Odometry,
-            '/ego_racecar/odom',  # Adjust topic name as needed
-            self.pose_callback,
-            10
-        )
+        self.get_logger().info(f'Is sim: {self.is_sim}')
+        if self.is_sim:
+            self.create_subscription(Odometry, '/ego_racecar/odom', self.pose_callback, 10)
+        else:
+            self.create_subscription(Odometry, '/pf/pose/odom', self.pose_callback, 10)
         self.drive_pub = self.create_publisher(
             AckermannDriveStamped,
             '/drive',  # Adjust topic name as needed
@@ -98,12 +105,7 @@ class MPC(Node):
         self.waypoint_pub = self.create_publisher(MarkerArray, '/mpc/waypoints', 10)
         self.orig_waypoint_pub = self.create_publisher(MarkerArray, '/mpc/orig_waypoints', 10)
 
-        # declare parameters in config file
-        self.declare_parameters(
-            namespace='',
-            parameters=[
-                ('waypoint_file_path_in_package', '/config/waypoints.csv')])
-        waypoint_file_path = self.get_parameter('waypoint_file_path_in_package').value
+        
         #       use the MPC as a tracker (similar to pure pursuit)
         # TODO: get waypoints here
         self.waypoints = load_waypoints(self, waypoint_file_path)
@@ -163,23 +165,26 @@ class MPC(Node):
         # TODO: publish drive message.
         steer_output = self.odelta_v[0]
         speed_output = vehicle_state.v + self.oa[0] * self.config.DTK
-
+        self.get_logger().info(
+            f"Steering: {steer_output:.2f}, Speed: {speed_output:.2f}"
+        )
         self.publish_drive_message(steer_output, speed_output)
 
-        # visualize_optimised_path(
-        #     ox,
-        #     oy,
-        #     oyaw,
-        #     ov,
-        #     self.optimised_path_pub)
-        
-        visualize_reference_trajectory(
-            ref_path,
-            self.ref_traj_pub)
-        
-        visualize_predicted_path(
-            state_predict,
-            self.pred_path_pub)
+        if self.is_debug:
+            # visualize_optimised_path(
+            #     ox,
+            #     oy,
+            #     oyaw,
+            #     ov,
+            #     self.optimised_path_pub)
+            
+            visualize_reference_trajectory(
+                ref_path,
+                self.ref_traj_pub)
+            
+            visualize_predicted_path(
+                state_predict,
+                self.pred_path_pub)
 
 
 
@@ -355,7 +360,8 @@ class MPC(Node):
 
         # Find nearest index/setpoint from where the trajectories are calculated
         _, _, _, ind = nearest_point(np.array([state.x, state.y]), np.array([cx, cy]).T)
-        visualize_nearest_point(self, state, cx, cy, ind)
+        if self.is_debug:
+            visualize_nearest_point(self, state, cx, cy, ind)
 
         # Load the initial parameters from the setpoint into the trajectory
         ref_traj[0, 0] = cx[ind]
