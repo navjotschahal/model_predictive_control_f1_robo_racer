@@ -121,30 +121,23 @@ def smooth_waypoints(self, waypoints=None):
     else:
         waypoints = np.array(waypoints)
     
-    # Extract x and y coordinates only - ignore potentially faulty yaw values
     x = waypoints[:, 0]
     y = waypoints[:, 1]
     
-    # Create a 2D B-spline (periodic if track is closed)
     tck, u = splprep([x, y], s=2.0, k=3, per=True)  # k=3 for cubic spline
     
-    # Evaluate the B-spline at evenly spaced points
     t_smooth = np.linspace(0, 1, 2200)
     x_smooth, y_smooth = splev(t_smooth, tck)
     
-    # Create new waypoints array with smoothed x, y
     smoothed_waypoints = np.zeros((2200, 4))  # [x, y, heading, velocity]
     smoothed_waypoints[:, 0] = x_smooth
     smoothed_waypoints[:, 1] = y_smooth
     
-    # Recalculate headings based on smoothed path
     dx = np.gradient(x_smooth)
     dy = np.gradient(y_smooth)
     smoothed_waypoints[:, 2] = np.arctan2(dy, dx)
     
-    # If velocity is included, recalculate based on curvature
     if waypoints.shape[1] >= 4:
-        # Recalculate velocities based on new curvature
         velocities = calculate_velocity_profile(self, smoothed_waypoints[:, :3])
         smoothed_waypoints[:, 3] = velocities
     
@@ -163,11 +156,9 @@ def load_waypoints(self, file_path):
         
         self.get_logger().info(f'Loading waypoints from: {file_path}')
         
-        # Check if file exists with absolute path or relative to package
         if os.path.isfile(file_path):
             csv_path = file_path
         else:
-            # Try to find relative to package
             package_share_directory = get_package_share_directory('mpc')
             self.get_logger().info(f'Looking for waypoints in package share directory: {package_share_directory}')
             csv_path = package_share_directory + file_path
@@ -186,13 +177,10 @@ def load_waypoints(self, file_path):
             self.get_logger().error('No waypoints found in file')
             raise ValueError("No waypoints loaded from file")
         
-        # Convert to numpy array
         waypoints = np.array(waypoints)
         
-        # Calculate curvature and add velocity based on it
         velocities = calculate_velocity_profile(self, waypoints)
         
-        # Add velocity as fourth column
         full_waypoints = np.column_stack((waypoints, velocities))
         
         self.get_logger().info(f'Loaded {len(full_waypoints)} waypoints')
@@ -208,39 +196,28 @@ def calculate_velocity_profile(self, waypoints):
         x = waypoints[:, 0]
         y = waypoints[:, 1]
         
-        # Calculate the differences
         dx = np.gradient(x)
         dy = np.gradient(y)
         
-        # Calculate second derivatives
         d2x = np.gradient(dx)
         d2y = np.gradient(dy)
         
-        # Calculate curvature: κ = |x'y'' - y'x''| / (x'^2 + y'^2)^(3/2)
         curvature = np.abs(dx * d2y - dy * d2x) / (dx**2 + dy**2)**(3/2)
         
-        # Replace NaNs or Infs with zero curvature
         curvature = np.nan_to_num(curvature)
         
-        # Map curvature to velocity: higher curvature -> lower velocity
-        # You can adjust these values as needed for your track
         max_velocity = self.config.MAX_SPEED  # Use your configured max speed
         min_velocity = 2.0  # Minimum velocity at sharpest turns
         
-        # Normalize curvature to [0, 1] range considering outliers
-        # Use percentile to avoid extreme values affecting the scaling
         curvature_min = np.percentile(curvature, 5)  # 5th percentile
         curvature_max = np.percentile(curvature, 95)  # 95th percentile
         
-        # Ensure we don't divide by zero
         if curvature_max - curvature_min < 1e-10:
             normalized_curvature = np.zeros_like(curvature)
         else:
-            # Clip and normalize curvature
             clipped_curvature = np.clip(curvature, curvature_min, curvature_max)
             normalized_curvature = (clipped_curvature - curvature_min) / (curvature_max - curvature_min)
         
-        # Calculate velocity: v = max_v - (max_v - min_v) * normalized_curvature
         velocity = max_velocity - (max_velocity - min_velocity) * normalized_curvature
         
         return velocity

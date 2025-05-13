@@ -149,39 +149,7 @@ def visualize_optimised_path(x_path, y_path, yaw_path, v_path, publisher):
     marker_array.markers.append(line_marker)
     publisher.publish(marker_array)
 
-# def visualize_predicted_path(path_predict, publisher):
-#     """
-#     Visualize the predicted path as a line strip.
-#     :param path_predict: Predicted path as a numpy array of shape (4, T+1) [x, y, v, yaw]
-#     :param publisher: ROS publisher for the MarkerArray
-#     """
-#     marker = Marker()
-#     marker.header.frame_id = "map"
-#     marker.header.stamp = rclpy.time.Time().to_msg()
-#     marker.ns = "predicted_path"
-#     marker.id = 1
-#     marker.type = Marker.LINE_STRIP
-#     marker.action = Marker.ADD
-#     marker.scale.x = 0.05  # Line width
-#     marker.color.r = 0.0
-#     marker.color.g = 1.0
-#     marker.color.b = 0.0
-#     marker.color.a = 1.0
 
-#     for i in range(path_predict.shape[1]):
-#         point = Point()
-#         point.x = path_predict[0, i]
-#         point.y = path_predict[1, i]
-#         point.z = 0.0
-#         marker.points.append(point)
-
-#     # Wrap the marker in a MarkerArray
-#     marker_array = MarkerArray()
-#     marker_array.markers.append(marker)
-
-#     publisher.publish(marker_array)
-
-# Add to viz_utils.py file
 def visualize_predicted_path(state_predict, publisher):
     """
     Visualize the predicted path from MPC
@@ -260,32 +228,6 @@ def visualize_predicted_path(state_predict, publisher):
     
     publisher.publish(marker_array)
 
-# def visualize_reference_trajectory(ref_traj, publisher):
-#     marker_array = MarkerArray()
-#     marker = Marker()
-#     marker.header.frame_id = "map"
-#     marker.header.stamp = rclpy.time.Time().to_msg()
-#     marker.ns = "reference_trajectory"
-#     marker.id = 0
-#     marker.type = Marker.LINE_STRIP
-#     marker.action = Marker.ADD
-#     marker.scale.x = 0.05  # Line width
-    
-#     # Set pink color
-#     marker.color.r = 1.0
-#     marker.color.g = 0.75
-#     marker.color.b = 0.8
-#     marker.color.a = 1.0  # Full opacity
-    
-#     for i in range(ref_traj.shape[1]):
-#         p = Point()
-#         p.x = ref_traj[0, i]
-#         p.y = ref_traj[1, i]
-#         p.z = 0.3
-#         marker.points.append(p)
-    
-#     marker_array.markers.append(marker)
-#     publisher.publish(marker_array)
 
 def visualize_reference_trajectory(ref_traj, publisher):
     marker_array = MarkerArray()
