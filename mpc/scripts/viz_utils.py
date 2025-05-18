@@ -111,45 +111,6 @@ def visualize_waypoints(waypoints, publisher, frame_id="map", ns="waypoints",
     
     publisher.publish(marker_array)
 
-def visualize_optimised_path(x_path, y_path, yaw_path, v_path, publisher):
-    """
-    Visualize the predicted path from MPC
-    
-    Args:
-        x_path: x positions along path
-        y_path: y positions along path
-        yaw_path: yaw angles along path
-        v_path: velocities along path
-        publisher: ROS publisher for MarkerArray
-    """
-    marker_array = MarkerArray()
-    
-    # Line showing the predicted path
-    line_marker = Marker()
-    line_marker.header.frame_id = "map"
-    line_marker.type = Marker.LINE_STRIP
-    line_marker.action = Marker.ADD
-    line_marker.scale.x = 0.03  # Line width
-    line_marker.color.a = 1.0
-    line_marker.color.r = 0.0
-    line_marker.color.g = 1.0  # Green
-    line_marker.color.b = 0.0
-    line_marker.id = 0
-    line_marker.lifetime = Duration(seconds=0.1).to_msg()
-    
-    # Add points to the line and create orientation arrows
-    for i in range(len(x_path)):
-        # Add point to line
-        p = Point()
-        p.x = x_path[i]
-        p.y = y_path[i]
-        p.z = 0.1  # Slightly above ground
-        line_marker.points.append(p)
-    
-    marker_array.markers.append(line_marker)
-    publisher.publish(marker_array)
-
-
 def visualize_predicted_path(state_predict, publisher):
     """
     Visualize the predicted path from MPC
@@ -227,7 +188,6 @@ def visualize_predicted_path(state_predict, publisher):
         marker_array.markers.append(v_marker)
     
     publisher.publish(marker_array)
-
 
 def visualize_reference_trajectory(ref_traj, publisher):
     marker_array = MarkerArray()

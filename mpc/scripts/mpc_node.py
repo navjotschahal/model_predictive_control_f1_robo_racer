@@ -15,7 +15,7 @@ from utils import nearest_point, euler_from_quaternion, smooth_waypoints, load_w
 
 from visualization_msgs.msg import MarkerArray
 
-from viz_utils import visualize_optimised_path, visualize_reference_trajectory, visualize_nearest_point, visualize_predicted_path, visualize_waypoints
+from viz_utils import visualize_reference_trajectory, visualize_nearest_point, visualize_predicted_path, visualize_waypoints
 
 from std_msgs.msg import Float32MultiArray
 
